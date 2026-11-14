@@ -1,12 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import RippleButton from "./RippleButton";
 import { explainAuthError, useAuth } from "../context/AuthContext";
 
 const VEHICLE_TYPES = ["Tricycle", "Pickup truck", "Van", "Motorbike"];
+const STAFF_MAX_ATTEMPTS = 5;
+const STAFF_LOCK_MS = 60_000;
 
-export default function AuthForm({ role, kicker, subtitle, onBack, allowSignup = true }) {
-  const { signIn, signUp, sendReset } = useAuth();
+export default function AuthForm({ role, kicker, subtitle, onBack, allowSignup = true, externalError = "" }) {
+  const { signIn, signInStaff, signUp, sendReset } = useAuth();
   const [mode, setMode] = useState("signin"); // signin | signup | forgot
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -15,6 +17,12 @@ export default function AuthForm({ role, kicker, subtitle, onBack, allowSignup =
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [failures, setFailures] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(0);
+
+  useEffect(() => {
+    if (externalError) setError(externalError);
+  }, [externalError]);
 
   const switchMode = (m) => {
     setMode(m);
@@ -39,11 +47,23 @@ export default function AuthForm({ role, kicker, subtitle, onBack, allowSignup =
     if (password.length < 8) return setError("Password must be at least 8 characters.");
     if (mode === "signup" && !name.trim()) return setError("Enter your name.");
 
+    if (role === "staff" && mode === "signin" && lockedUntil > Date.now()) {
+      const secs = Math.ceil((lockedUntil - Date.now()) / 1000);
+      return setError(`Too many attempts. Try again in ${secs}s.`);
+    }
+
     setBusy(true);
     if (mode === "signin") {
-      const { error: err } = await signIn(em, password);
+      const { error: err } = role === "staff" ? await signInStaff(em, password) : await signIn(em, password);
       setBusy(false);
-      if (err) setError(explainAuthError(err));
+      if (err) {
+        setError(explainAuthError(err));
+        if (role === "staff") {
+          const n = failures + 1;
+          if (n >= STAFF_MAX_ATTEMPTS) { setFailures(0); setLockedUntil(Date.now() + STAFF_LOCK_MS); }
+          else setFailures(n);
+        }
+      }
       return; // on success the session listener routes the user
     }
     const { error: err, needsConfirmation } = await signUp({
