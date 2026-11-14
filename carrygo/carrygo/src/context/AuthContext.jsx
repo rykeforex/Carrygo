@@ -21,6 +21,9 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [collectorApp, setCollectorApp] = useState(null);
   const [profileError, setProfileError] = useState(null);
+  // Staff sign-in: true while we confirm the account really is an admin, and a message to show if it isn't.
+  const [verifyingStaff, setVerifyingStaff] = useState(false);
+  const [authNotice, setAuthNotice] = useState("");
 
   useEffect(() => {
     if (!supabase) return;
@@ -63,6 +66,32 @@ export function AuthProvider({ children }) {
 
   const signIn = (email, password) => supabase.auth.signInWithPassword({ email, password });
 
+  // Staff sign-in only lets administrators through. Anyone else is signed straight back out and sees the
+  // same generic "incorrect email or password" message, so the form never reveals which accounts exist.
+  const signInStaff = async (email, password) => {
+    setAuthNotice("");
+    setVerifyingStaff(true);
+    try {
+      const res = await supabase.auth.signInWithPassword({ email, password });
+      if (res.error) return { error: res.error };
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("role, is_suspended")
+        .eq("id", res.data.user.id)
+        .maybeSingle();
+      if (!p || p.role !== "admin" || p.is_suspended) {
+        setAuthNotice("Incorrect email or password.");
+        await supabase.auth.signOut();
+        return { error: { message: "Invalid login credentials" } };
+      }
+      return { error: null };
+    } finally {
+      setVerifyingStaff(false);
+    }
+  };
+
+  const clearAuthNotice = useCallback(() => setAuthNotice(""), []);
+
   const signUp = async ({ email, password, fullName, applyCollector, vehicleType }) => {
     const data = { full_name: fullName };
     if (applyCollector) {
@@ -87,13 +116,14 @@ export function AuthProvider({ children }) {
     setCollectorApp(null);
   };
 
-  const loading = booting || (!!uid && !profile && !profileError);
+  const loading = booting || (!!uid && (verifyingStaff || (!profile && !profileError)));
 
   return (
     <AuthContext.Provider
       value={{
         configured: supabaseConfigured, loading, session, profile, collectorApp, profileError, recovery,
-        signIn, signUp, sendReset, updatePassword, finishRecovery, signOut, refreshProfile: loadProfile,
+        authNotice, clearAuthNotice,
+        signIn, signInStaff, signUp, sendReset, updatePassword, finishRecovery, signOut, refreshProfile: loadProfile,
       }}
     >
       {children}
