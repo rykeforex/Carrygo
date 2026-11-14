@@ -1,5 +1,6 @@
 import React from "react";
 import { Truck, PackageSearch, CarFront } from "lucide-react";
+import CopyrightSecret from "../components/CopyrightSecret";
 
 export default function LandingChooser({ onPick }) {
   return (
@@ -29,7 +30,9 @@ export default function LandingChooser({ onPick }) {
             <span className="cg-chooser-cta">Continue as a collector →</span>
           </button>
         </div>
-        <button type="button" className="cg-staff-link" onClick={() => onPick("staff")}>Staff sign in</button>
+
+        {/* Staff sign-in is intentionally not listed anywhere. Press and hold the copyright line. */}
+        <CopyrightSecret onUnlock={() => onPick("staff")} />
       </div>
     </div>
   );
