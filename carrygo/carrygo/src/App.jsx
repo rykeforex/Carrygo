@@ -11,6 +11,7 @@ import CustomerAppShell from "./shells/CustomerAppShell";
 import CollectorAppShell from "./shells/CollectorAppShell";
 import AdminShell from "./shells/AdminShell";
 import RootFrame from "./components/RootFrame";
+import SplashScreen, { shouldShowSplash } from "./components/SplashScreen";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 
@@ -89,10 +90,13 @@ function Gate() {
 }
 
 export default function App() {
+  const [splash, setSplash] = useState(shouldShowSplash);
   return (
     <ToastProvider>
       <AuthProvider>
+        {/* The app loads behind the splash, so nothing waits on it. */}
         <Gate />
+        {splash && <SplashScreen onDone={() => setSplash(false)} />}
       </AuthProvider>
     </ToastProvider>
   );
