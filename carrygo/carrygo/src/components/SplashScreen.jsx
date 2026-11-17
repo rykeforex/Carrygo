@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./splash.css";
 
-export const SPLASH_SLOGAN = "We carry. You go.";
+export const SPLASH_SLOGAN = "Bin it. We'll carry it.";
 
 // Total time before the splash fades out on its own (ms). Tap anywhere to skip.
 const TOTAL_MS = 3900;
